@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerund & Infinitive Quiz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/tone@14.7.58/build/Tone.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 90%;
+            width: 800px;
+            min-height: 500px;
+            background-color: white;
+        }
+        .option-button {
+            padding: 1rem 1.5rem;
+            background-color: #f3f4f6;
+            color: #1f2937;
+            border: 2px solid #e5e7eb;
+            font-weight: 600;
+            border-radius: 9999px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .option-button:hover:not(:disabled) {
+            background-color: #e5e7eb;
+        }
+        .option-button:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        .correct {
+            background-color: #dcfce7;
+            border-color: #22c55e;
+            color: #16a34a;
+        }
+        .incorrect {
+            background-color: #fee2e2;
+            border-color: #ef4444;
+            color: #dc2626;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+<div class="container rounded-2xl shadow-2xl p-8 flex flex-col items-center text-center">
+    <h1 class="text-4xl sm:text-5xl font-bold text-gray-800 mb-2 tracking-tight">Gerund & Infinitive Quiz</h1>
+    <p class="text-gray-500 mb-4 max-w-lg">
+        Choose the correct form of the verb to complete each sentence.
+    </p>
+
+    <div class="score-display text-lg font-medium text-gray-600 mb-8">
+        Score: <span id="score">0</span> / <span id="total-questions">0</span>
+    </div>
+
+    <div class="flashcard-container flex flex-col items-center justify-center w-full max-w-lg bg-white rounded-xl shadow-lg p-6 transition-all duration-300 transform scale-100">
+        <p id="sentence-display" class="text-2xl font-semibold mb-6 text-gray-700"></p>
+
+        <div id="options-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full mt-4">
+            <!-- Multiple choice buttons will be generated here -->
+        </div>
+
+        <div id="message-box" class="mt-4 p-4 rounded-lg text-sm font-medium hidden"></div>
+
+        <button id="action-button" class="mt-6 px-8 py-3 bg-blue-600 text-white font-semibold rounded-full shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200">
+            Start
+        </button>
+    </div>
+</div>
+
+<script>
+    const quizData = [
+        { sentence: "I don't like to go ___. (dance)", answer: "dancing", baseVerb: "dance" },
+        { sentence: "They practiced ___ for the test. (study)", answer: "studying", baseVerb: "study" },
+        { sentence: "I hope ___ my goals this year. (achieve)", answer: "to achieve", baseVerb: "achieve" },
+        { sentence: "She suggested ___ out tonight. (eat)", answer: "eating", baseVerb: "eat" },
+        { sentence: "I'm looking forward to ___ you. (see)", answer: "seeing", baseVerb: "see" },
+        { sentence: "He offered ___ me with my bags. (help)", answer: "to help", baseVerb: "help" },
+        { sentence: "We decided ___ a movie. (watch)", answer: "to watch", baseVerb: "watch" },
+        { sentence: "They finished ___ their homework. (do)", answer: "doing", baseVerb: "do" },
+        { sentence: "She wants ___ fluent in Spanish. (become)", answer: "to become", baseVerb: "become" },
+        { sentence: "I enjoy ___ new languages. (learn)", answer: "learning", baseVerb: "learn" },
+    ];
+
+    let remainingQuestions = [...quizData];
+    let correctQuestion = null;
+    let score = 0;
+    let totalQuestions = 0;
+
+    // Get references to DOM elements
+    const sentenceDisplay = document.getElementById('sentence-display');
+    const actionButton = document.getElementById('action-button');
+    const optionsContainer = document.getElementById('options-container');
+    const messageBox = document.getElementById('message-box');
+    const scoreDisplay = document.getElementById('score');
+    const totalQuestionsDisplay = document.getElementById('total-questions');
+
+    // Create audio synths for feedback
+    const correctSynth = new Tone.Synth({
+        oscillator: { type: "triangle" },
+        envelope: { attack: 0.05, decay: 0.1, sustain: 0.2, release: 0.5 }
+    }).toDestination();
+
+    const incorrectSynth = new Tone.MembraneSynth({
+        octaves: 1,
+        pitchDecay: 0.05
+    }).toDestination();
+    
+    // Function to play the correct sound
+    const playCorrectSound = () => {
+        correctSynth.triggerAttackRelease("C5", "8n");
+    };
+
+    // Function to play the incorrect sound
+    const playIncorrectSound = () => {
+        incorrectSynth.triggerAttackRelease("C2", "8n");
+    };
+
+    // Function to show a temporary message
+    const showMessage = (text, type = 'info') => {
+        messageBox.textContent = text;
+        messageBox.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700', 'bg-blue-100', 'text-blue-700');
+        if (type === 'error') {
+            messageBox.classList.add('bg-red-100', 'text-red-700');
+        } else if (type === 'success') {
+            messageBox.classList.add('bg-green-100', 'text-green-700');
+        } else {
+            messageBox.classList.add('bg-blue-100', 'text-blue-700');
+        }
+        messageBox.classList.remove('hidden');
+    };
+
+    // Shuffle array function
+    const shuffleArray = (array) => {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    };
+
+    // Function to check the selected answer
+    const checkAnswer = (selectedAnswer, button) => {
+        // Disable all option buttons
+        const optionButtons = document.querySelectorAll('.option-button');
+        optionButtons.forEach(btn => btn.disabled = true);
+        
+        // Highlight the correct button and the selected button
+        const correctButton = Array.from(optionButtons).find(btn => btn.textContent === correctQuestion.answer);
+        if (correctButton) {
+            correctButton.classList.add('correct');
+        }
+        
+        if (selectedAnswer === correctQuestion.answer) {
+            score++;
+            button.classList.add('correct');
+            showMessage("Correct!", 'success');
+            playCorrectSound();
+        } else {
+            button.classList.add('incorrect');
+            showMessage("Incorrect. The correct answer was " + correctQuestion.answer, 'error');
+            playIncorrectSound();
+        }
+        scoreDisplay.textContent = score;
+
+        // Show Next button after answer is checked
+        actionButton.textContent = 'Next Question';
+        actionButton.onclick = nextQuestion;
+        actionButton.classList.remove('hidden');
+    };
+
+    // Function to generate the next question
+    const nextQuestion = () => {
+        messageBox.classList.add('hidden');
+        optionsContainer.innerHTML = '';
+        
+        if (remainingQuestions.length === 0) {
+            endGame();
+            return;
+        }
+
+        totalQuestions++;
+        totalQuestionsDisplay.textContent = totalQuestions;
+
+        // Select a correct question
+        const randomIndex = Math.floor(Math.random() * remainingQuestions.length);
+        correctQuestion = remainingQuestions[randomIndex];
+        remainingQuestions.splice(randomIndex, 1);
+        
+        sentenceDisplay.textContent = correctQuestion.sentence;
+        actionButton.classList.add('hidden');
+
+        // Generate multiple-choice options with only the gerund and infinitive forms
+        let incorrectOption = '';
+        if (correctQuestion.answer.startsWith('to ')) {
+            // If the correct answer is an infinitive, the incorrect one is the gerund
+            incorrectOption = correctQuestion.baseVerb + 'ing';
+        } else {
+            // If the correct answer is a gerund, the incorrect one is the infinitive
+            incorrectOption = 'to ' + correctQuestion.baseVerb;
+        }
+        
+        const options = [correctQuestion.answer, incorrectOption];
+        const shuffledOptions = shuffleArray(options);
+
+        shuffledOptions.forEach(option => {
+            const button = document.createElement('button');
+            button.textContent = option;
+            button.className = 'option-button';
+            button.onclick = () => checkAnswer(option, button);
+            optionsContainer.appendChild(button);
+        });
+    };
+
+    const endGame = () => {
+        optionsContainer.innerHTML = '';
+        sentenceDisplay.textContent = '';
+        showMessage(`Your final score is ${score} out of ${totalQuestions}!`, 'success');
+        actionButton.textContent = 'Play Again';
+        actionButton.classList.remove('hidden');
+        actionButton.onclick = () => window.location.reload();
+    };
+
+    // Initial setup
+    actionButton.onclick = nextQuestion;
+</script>
+
+</body>
+</html>
